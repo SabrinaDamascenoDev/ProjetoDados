@@ -1,17 +1,62 @@
 import pandas as pd
+from dotenv import load_dotenv
+import os
 import openpyxl as xl
 
-tabela_vendas = pd.read_excel("excel_files/Vendas.xlsx")
+from pymongo import MongoClient
+load_dotenv()
+#Pegando o link de um avariavel de ambiente
+link = os.getenv("LINK_BD")
+#Conectando com o bd MongoDB
+client = MongoClient(link)
+db = client["PythonVisualization"]
+#Criando as coleções no mongo
+collection = db["faturamento"]
+collection2 = db["quantidade"]
+collection3 = db["Ticket"]
 
 # Importar base de dados
-pd.set_option("display.max_columns", None)
-print(tabela_vendas)
+tabela_vendas = pd.read_excel("excel_files/Vendas.xlsx")
 # Visualizar a base de dados
+pd.set_option("display.max_columns", None)
 
-# Faturamento por loja
+faturamento = tabela_vendas[['ID Loja', 'Valor Final']].groupby('ID Loja').sum().reset_index() # Faturamento por loja
 
-# Quantidade de produtos vendidos pela loja
-
+quantidade = tabela_vendas[['ID Loja', 'Quantidade']].groupby('ID Loja').sum().reset_index() # Quantidade de produtos vendidos pela loja
 # Ticket medio por procura em cada loja
 
-# Enviar um email com o relatório gerado
+#Se o faturamento não tiver o mesmo indice que a qunatidade aparecer erro
+if not faturamento.index.equals(quantidade.index):
+    raise ValueError("Os índices de 'faturamento' e 'quantidade' não são iguais.")
+
+quantidade.replace({'Quantidade': {0: pd.NA}}, inplace=True) #Susbstituir os valores igual a 0 por nulo na tabela
+
+# Fazer a lógica do ticket médio e criar uma tabela para guardar essas informações com o nome Ticked Médio
+ticket = (faturamento['Valor Final'] / quantidade['Quantidade']).to_frame(name='Ticket Médio')
+# Add o valor ID Loja da tabela faturamendo e add o valor no atributo ID Loja do ticket
+ticket['ID Loja'] = faturamento['ID Loja'].values
+
+ticket.reset_index(inplace=True)
+
+print(ticket)
+#Converte para dicionário
+faturamento_dict = faturamento.to_dict(orient='records')
+quantidade_dict = quantidade.to_dict(orient='records')
+ticket_dict = ticket[['ID Loja', 'Ticket Médio']].to_dict(orient='records')
+
+#Envia para banco
+try:
+    collection.insert_many(faturamento_dict)
+    collection2.insert_many(quantidade_dict)
+    collection3.insert_many(ticket_dict)
+    print("Tudo salvo no MongoDB!")
+except:
+    print("Erro ao salvar no MongoDB")
+
+
+
+
+
+
+
+
