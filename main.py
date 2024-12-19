@@ -1,19 +1,8 @@
 import pandas as pd
-from dotenv import load_dotenv
-import os
 import openpyxl as xl
-
-from pymongo import MongoClient
-load_dotenv()
-#Pegando o link de um avariavel de ambiente
-link = os.getenv("LINK_BD")
-#Conectando com o bd MongoDB
-client = MongoClient(link)
-db = client["PythonVisualization"]
-#Criando as coleções no mongo
-collection = db["faturamento"]
-collection2 = db["quantidade"]
-collection3 = db["Ticket"]
+from bd.connect import collection
+from bd.connect import collection2
+from bd.connect import collection3
 
 # Importar base de dados
 tabela_vendas = pd.read_excel("excel_files/Vendas.xlsx")
